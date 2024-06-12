@@ -3,12 +3,55 @@ const Mahasiswa = require("../models/MahasiswaModel.js");
 const StatusPermintaan = require("../models/StatusPermintaanModel.js");
 const Permintaan = require("../models/PermintaanModel.js");
 const { getMahasiswa, getUser } = require("./auth.js");
+const multer = require('multer');
+const path = require('path');
+const { check, validationResult } = require('express-validator');
+
+const validateForm = [
+  check('inputTarget').custom(value => {
+    if (value === 'default') {
+      throw new Error('Target permintaan surat harus dipilih');
+    }
+    return true;
+  }),
+  check('inputTujuan').custom(value => {
+    if (value === 'default') {
+      throw new Error('Tujuan permintaan surat harus dipilih');
+    }
+    return true;
+  }),
+  check('inputOrtu').if(check('inputTarget').equals('Orang tua')).notEmpty().withMessage('Nama orang tua harus diisi'),
+  check('inputNip').if(check('inputTarget').equals('Orang tua')).notEmpty().withMessage('NIP harus diisi'),
+  check('inputPangkat').if(check('inputTarget').equals('Orang tua')).notEmpty().withMessage('Pangkat dan golongan harus diisi'),
+  check('inputUnit').if(check('inputTarget').equals('Orang tua')).notEmpty().withMessage('Unit kerja harus diisi'),
+  check('inputInstansi').if(check('inputTarget').equals('Orang tua')).notEmpty().withMessage('Instansi induk harus diisi'),
+  check('berkas').custom((value, { req }) => {
+    if (!req.file) {
+      throw new Error('Berkas harus diupload');
+    }
+    if (req.file.size > 2 * 1024 * 1024) {
+      throw new Error('Ukuran berkas maksimal 2 MB');
+    }
+    return true;
+  })
+];
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '..', 'public', 'data', 'permintaan'));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage });
 
 const sendForm = async (req, res) => {
   try {
     const { inputName, inputNim, inputDepartemen, inputTarget, inputTujuan, inputOrtu, inputNip, inputPangkat, inputUnit, inputInstansi } = req.body;
-    
-    // Extract nim from associated Mahasiswa model
+    const berkasFile = req.file ? req.file.filename : null;
 
     // Memasukkan data form ke dalam basis data menggunakan model Permintaan
     const permintaanBaru = await Permintaan.create({ 
@@ -20,7 +63,8 @@ const sendForm = async (req, res) => {
       pangkatGolongan: inputPangkat,
       unitKerja: inputUnit,
       instansiInduk: inputInstansi,
-      status: "Diajukan"
+      status: "Diajukan",
+      berkas: berkasFile  // Simpan nama file di database
     });
     
     const idPermintaan = permintaanBaru.idPermintaan; // Asumsikan kolom ID di model Permintaan adalah 'id'
@@ -29,6 +73,7 @@ const sendForm = async (req, res) => {
       idStatus: "1",
       idPermintaan: idPermintaan,
       status: "Selesai",
+      tanggal: new Date().toISOString(), // Mengonversi objek tanggal menjadi string ISO 8601
     });
 
     await StatusPermintaan.create({
@@ -44,8 +89,8 @@ const sendForm = async (req, res) => {
     });
 
     const io = req.app.get("io");
-    io.to("admin").emit("new_permintaan", {
-      message: "Test notifikasi",
+    io.to("1972020142000121001").emit("new_permintaan", {
+      message: "Permintaan baru telah diajukan",
       permintaan: { inputTujuan: inputTujuan, inputNim: inputNim }
     });
 
@@ -105,4 +150,4 @@ const getRiwayat = async (req, res) => {
   }
 };
 
-module.exports = { sendForm, getRiwayat };
+module.exports = { sendForm, getRiwayat,upload, validateForm,validationResult};

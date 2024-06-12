@@ -38,6 +38,9 @@ const Permintaan = db.define('permintaan', {
     instansiInduk: {
         type: DataTypes.STRING
     },
+    berkas: {
+        type: DataTypes.STRING
+    },
     status: {
         type: DataTypes.STRING
     },
@@ -55,4 +58,6 @@ const Permintaan = db.define('permintaan', {
 });
 
 Permintaan.belongsTo(Mahasiswa, { foreignKey: 'nim' });
+
+
 module.exports = Permintaan;

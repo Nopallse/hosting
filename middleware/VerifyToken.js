@@ -2,10 +2,6 @@ const jwt = require('jsonwebtoken');
 
 const verifyToken = (role) => (req, res, next) => {
 
-    if (req.path === '/login') {
-        return next();
-      }
-      
     const accessToken = req.cookies.token;
     const refreshToken = req.cookies.refreshToken;
 

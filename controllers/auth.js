@@ -5,6 +5,7 @@ const fs = require('fs/promises');
 const multer = require('multer');
 const Admin = require('../models/AdminModel.js');
 const Mahasiswa = require('../models/MahasiswaModel.js');
+const { where } = require('sequelize');
 
 const Login = async (req, res) => {
 
@@ -149,9 +150,8 @@ const changePassword = async (req, res) => {
 const editProfile = async (req, res) => {
   try {
     const { newName, newNim, newPhoneNumber } = req.body;
-
-    const mahasiswa = await Mahasiswa.findOne(req.newNim);
-    
+    console.log(req.body);
+    const mahasiswa = await Mahasiswa.findOne({ where: { nim: newNim } });
     await mahasiswa.update({ 
       name: newName,
       nim: newNim,
